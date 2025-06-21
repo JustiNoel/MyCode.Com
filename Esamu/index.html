@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Esamu Events</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f4f4f4; }
+    nav { background: #2c3e50; padding: 1em 0; }
+    nav ul { list-style: none; display: flex; justify-content: center; margin: 0; padding: 0; }
+    nav ul li { margin: 0 1.5em; }
+    nav ul li a { color: #fff; text-decoration: none; font-weight: bold; }
+    .hero { background: #2980b9; color: #fff; padding: 3em 1em; text-align: center; }
+    .container { max-width: 1000px; margin: 2em auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);}
+    .events-grid { display: flex; flex-wrap: wrap; gap: 2em; justify-content: center; }
+    .event-card { background: #fafafa; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 1em; width: 280px; text-align: center; }
+    .event-card img { width: 100%; border-radius: 6px; }
+    .event-card h3 { margin: 0.5em 0 0.2em; }
+    .event-card p { color: #555; margin-bottom: 1em; }
+    .event-card button { background: #27ae60; color: #fff; border: none; padding: 0.7em 1.5em; border-radius: 4px; cursor: pointer; font-size: 1em; }
+    .event-card button:hover { background: #219150; }
+    #countdown { font-size: 1.5em; color: #c0392b; margin: 1em 0; text-align: center; }
+    footer { background: #2c3e50; color: #fff; text-align: center; padding: 1em 0; margin-top: 2em; }
+  </style>
+</head>
+<body>
+  <?php include 'header.php'; ?>
+
+  <section class="hero" id="home">
+    <h1>Welcome to Esamu Events</h1>
+    <p>Join us for exciting events, learning, and fun!</p>
+    <div id="countdown"></div>
+  </section>
+
+  <?php include 'events.php'; ?>
+
+  <div class="container" id="about">
+    <h2>About Esamu</h2>
+    <p>
+      Esamu is a vibrant student organization dedicated to hosting events that inspire, educate, and connect students across the region. Join us for debates, fun days, business idea competitions, and more!
+    </p>
+  </div>
+
+  <?php include 'footer.php'; ?>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
