@@ -1,4 +1,4 @@
-CREATE DATABASE esamu_db;
+CREATE DATABASE IF NOT EXISTS esamu_db;
 USE esamu_db;
 
 CREATE TABLE events (
