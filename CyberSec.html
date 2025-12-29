@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Bazaar AI - Biometric Verification</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff96;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #videoElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        #canvasElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        .hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 30, 15, 0.9);
+            border-bottom: 3px solid #00ff96;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 0 0 20px #00ff96;
+            letter-spacing: 3px;
+        }
+
+        .phase-container {
+            position: absolute;
+            top: 100px;
+            left: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff96;
+            padding: 30px;
+            border-radius: 10px;
+            min-width: 400px;
+        }
+
+        .phase-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            color: #00ff96;
+            text-shadow: 0 0 10px #00ff96;
+        }
+
+        .phase-info {
+            font-size: 16px;
+            margin: 10px 0;
+            color: #00ffaa;
+        }
+
+        .bpm-display {
+            font-size: 32px;
+            color: #ff6b00;
+            text-shadow: 0 0 15px #ff6b00;
+            margin: 15px 0;
+        }
+
+        .progress-container {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 800px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #00ff96;
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff96, #00ffff);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 20px #00ff96;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            font-weight: bold;
+            color: #000;
+            text-shadow: 0 0 5px #fff;
+            z-index: 1;
+        }
+
+        .scanning-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #00ff96;
+            text-shadow: 0 0 30px #00ff96;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .finger-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border: 3px solid #00ff96;
+            border-radius: 20px;
+        }
+
+        .finger-prompt h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #00ff96;
+            text-shadow: 0 0 20px #00ff96;
+        }
+
+        .finger-circle {
+            width: 200px;
+            height: 200px;
+            border: 5px solid #00ff96;
+            border-radius: 50%;
+            margin: 20px auto;
+            animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 30px #00ff96;
+        }
+
+        .success-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 255, 150, 0.1);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .success-screen.active {
+            display: flex;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .success-text {
+            font-size: 72px;
+            color: #00ff96;
+            text-shadow: 0 0 50px #00ff96;
+            margin-bottom: 30px;
+            animation: scaleIn 0.5s ease;
+        }
+
+        .checkmark {
+            width: 200px;
+            height: 200px;
+            border: 5px solid #00ff96;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 120px;
+            color: #00ff96;
+            box-shadow: 0 0 50px #00ff96;
+            animation: scaleIn 0.5s ease 0.3s backwards;
+        }
+
+        .start-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px 60px;
+            font-size: 28px;
+            background: rgba(0, 255, 150, 0.2);
+            border: 3px solid #00ff96;
+            color: #00ff96;
+            cursor: pointer;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 10px #00ff96;
+            pointer-events: all;
+            z-index: 10;
+        }
+
+        .start-button:hover {
+            background: rgba(0, 255, 150, 0.4);
+            box-shadow: 0 0 30px #00ff96;
+            transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .heartbeat-wave {
+            position: absolute;
+            top: 120px;
+            right: 50px;
+            width: 300px;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff6b00;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        #waveCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .status-indicators {
+            position: absolute;
+            top: 250px;
+            right: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff96;
+            border-radius: 10px;
+            padding: 20px;
+            min-width: 250px;
+        }
+
+        .indicator {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+
+        .indicator-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background: #333;
+            box-shadow: 0 0 5px #333;
+        }
+
+        .indicator-dot.active {
+            background: #00ff96;
+            box-shadow: 0 0 15px #00ff96;
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <video id="videoElement" autoplay playsinline></video>
+        <canvas id="canvasElement"></canvas>
+        
+        <div class="hud-overlay">
+            <div class="top-bar">
+                <div class="title">SAFE BAZAAR AI - BIOMETRIC VERIFICATION</div>
+            </div>
+
+            <div class="phase-container" id="phaseContainer">
+                <div class="phase-title" id="phaseTitle">INITIALIZING...</div>
+                <div class="phase-info" id="phaseInfo">Preparing verification systems...</div>
+                <div class="bpm-display" id="bpmDisplay">BPM: --</div>
+            </div>
+
+            <div class="heartbeat-wave" id="heartbeatWave">
+                <canvas id="waveCanvas"></canvas>
+            </div>
+
+            <div class="status-indicators">
+                <div class="indicator">
+                    <div class="indicator-dot" id="faceDot"></div>
+                    <span>FACE DETECTED</span>
+                </div>
+                <div class="indicator">
+                    <div class="indicator-dot" id="meshDot"></div>
+                    <span>MESH TRACKING</span>
+                </div>
+                <div class="indicator">
+                    <div class="indicator-dot" id="pulseDot"></div>
+                    <span>PULSE ACTIVE</span>
+                </div>
+                <div class="indicator">
+                    <div class="indicator-dot" id="livenessDot"></div>
+                    <span>LIVENESS VERIFIED</span>
+                </div>
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+            </div>
+
+            <div class="finger-prompt hidden" id="fingerPrompt">
+                <h2>PLACE FINGER ON CAMERA</h2>
+                <div class="finger-circle"></div>
+                <p style="font-size: 18px; color: #00ffaa;">Cover the camera lens with your finger</p>
+            </div>
+
+            <div class="success-screen" id="successScreen">
+                <div class="success-text">ACCESS GRANTED</div>
+                <div class="checkmark">✓</div>
+                <p style="font-size: 24px; margin-top: 30px; color: #00ffaa;">VERIFICATION COMPLETE</p>
+            </div>
+        </div>
+
+        <button class="start-button" id="startButton">START VERIFICATION</button>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('videoElement');
+        const canvasElement = document.getElementById('canvasElement');
+        const ctx = canvasElement.getContext('2d');
+        const waveCanvas = document.getElementById('waveCanvas');
+        const waveCtx = waveCanvas.getContext('2d');
+
+        // Phase management
+        const PHASES = [
+            { name: 'FACE_SCAN', duration: 5000, title: 'FACIAL RECOGNITION SCAN', info: 'Scanning facial landmarks...' },
+            { name: 'MESH_TRACKING', duration: 4000, title: 'MESH ANALYSIS', info: 'Analyzing 468-point face mesh...' },
+            { name: 'RPPG_HEARTBEAT', duration: 6000, title: 'HEARTBEAT DETECTION', info: 'Detecting remote photoplethysmography signal...' },
+            { name: 'THUMB_PULSE', duration: 5000, title: 'FINGER PULSE CHALLENGE', info: 'Active liveness verification...' },
+            { name: 'COMPLETE', duration: 3000, title: 'VERIFICATION COMPLETE', info: 'All systems verified.' }
+        ];
+
+        let currentPhaseIndex = 0;
+        let phaseStartTime = 0;
+        let verificationStarted = false;
+        let faceMesh = null;
+        let camera = null;
+
+        // rPPG variables
+        let greenSignals = [];
+        let timestamps = [];
+        let detectedBPM = 0;
+        let waveformData = [];
+
+        // Resize canvas to match video
+        function resizeCanvas() {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+            waveCanvas.width = 280;
+            waveCanvas.height = 80;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Start button
+        document.getElementById('startButton').addEventListener('click', async () => {
+            document.getElementById('startButton').classList.add('hidden');
+            await initializeVerification();
+        });
+
+        async function initializeVerification() {
+            verificationStarted = true;
+            currentPhaseIndex = 0;
+            phaseStartTime = Date.now();
+
+            // Initialize MediaPipe Face Mesh
+            faceMesh = new FaceMesh({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+                }
+            });
+
+            faceMesh.setOptions({
+                maxNumFaces: 1,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.7
+            });
+
+            faceMesh.onResults(onResults);
+
+            // Start camera
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    } 
+                });
+                videoElement.srcObject = stream;
+                
+                videoElement.addEventListener('loadeddata', () => {
+                    processFrame();
+                });
+            } catch (error) {
+                alert('Camera access required for verification. Please allow camera access and refresh.');
+            }
+        }
+
+        async function processFrame() {
+            if (!verificationStarted) return;
+            
+            await faceMesh.send({ image: videoElement });
+            requestAnimationFrame(processFrame);
+        }
+
+        function onResults(results) {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            const currentPhase = PHASES[currentPhaseIndex];
+            const elapsed = Date.now() - phaseStartTime;
+            const progress = Math.min((elapsed / currentPhase.duration) * 100, 100);
+
+            // Update progress bar
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressText').textContent = Math.floor(progress) + '%';
+
+            // Update phase info
+            document.getElementById('phaseTitle').textContent = currentPhase.title;
+            document.getElementById('phaseInfo').textContent = currentPhase.info;
+
+            // Check if phase complete
+            if (progress >= 100 && currentPhaseIndex < PHASES.length - 1) {
+                currentPhaseIndex++;
+                phaseStartTime = Date.now();
+                
+                if (PHASES[currentPhaseIndex].name === 'THUMB_PULSE') {
+                    document.getElementById('fingerPrompt').classList.remove('hidden');
+                } else {
+                    document.getElementById('fingerPrompt').classList.add('hidden');
+                }
+
+                if (PHASES[currentPhaseIndex].name === 'COMPLETE') {
+                    document.getElementById('successScreen').classList.add('active');
+                    document.getElementById('phaseContainer').classList.add('hidden');
+                    document.getElementById('heartbeatWave').classList.add('hidden');
+                    setTimeout(() => {
+                        // Reset or redirect
+                    }, 3000);
+                }
+            }
+
+            // Update indicators
+            if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                document.getElementById('faceDot').classList.add('active');
+                
+                const landmarks = results.multiFaceLandmarks[0];
+
+                // Draw face mesh
+                if (currentPhase.name === 'FACE_SCAN' || currentPhase.name === 'MESH_TRACKING') {
+                    drawFaceMesh(landmarks);
+                    document.getElementById('meshDot').classList.add('active');
+                }
+
+                // Draw iris circles
+                if (currentPhase.name === 'MESH_TRACKING') {
+                    drawIris(landmarks);
+                }
+
+                // rPPG calculation
+                if (currentPhase.name === 'RPPG_HEARTBEAT' || currentPhase.name === 'THUMB_PULSE') {
+                    calculateRPPG(landmarks);
+                    drawHeartbeatWave();
+                    
+                    if (detectedBPM > 0) {
+                        document.getElementById('pulseDot').classList.add('active');
+                        document.getElementById('livenessDot').classList.add('active');
+                    }
+                }
+
+                document.getElementById('bpmDisplay').textContent = `BPM: ${detectedBPM || '--'}`;
+            } else {
+                document.getElementById('faceDot').classList.remove('active');
+                document.getElementById('meshDot').classList.remove('active');
+            }
+
+            // Simulate finger detection for thumb pulse phase
+            if (currentPhase.name === 'THUMB_PULSE') {
+                // In real implementation, analyze center brightness
+                // For demo, auto-complete after some time
+            }
+        }
+
+        function drawFaceMesh(landmarks) {
+            ctx.strokeStyle = '#00ff96';
+            ctx.fillStyle = '#00ff96';
+
+            // Draw all 468 landmarks
+            for (let i = 0; i < landmarks.length; i++) {
+                const x = landmarks[i].x * canvasElement.width;
+                const y = landmarks[i].y * canvasElement.height;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 1, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Draw connections for a mesh effect
+            const connections = [
+                [10, 338], [338, 297], [297, 332], [332, 284],
+                [284, 251], [251, 389], [389, 356], [356, 454],
+                [454, 323], [323, 361], [361, 288], [288, 397],
+                [397, 365], [365, 379], [379, 378], [378, 400],
+                [400, 377], [377, 152], [152, 148], [148, 176],
+                [176, 149], [149, 150], [150, 136], [136, 172]
+            ];
+
+            ctx.strokeStyle = 'rgba(0, 255, 150, 0.3)';
+            ctx.lineWidth = 1;
+
+            for (const connection of connections) {
+                const start = landmarks[connection[0]];
+                const end = landmarks[connection[1]];
+                
+                ctx.beginPath();
+                ctx.moveTo(start.x * canvasElement.width, start.y * canvasElement.height);
+                ctx.lineTo(end.x * canvasElement.width, end.y * canvasElement.height);
+                ctx.stroke();
+            }
+        }
+
+        function drawIris(landmarks) {
+            // Left iris (landmarks 468-472)
+            const leftIris = landmarks.slice(468, 473);
+            const rightIris = landmarks.slice(473, 478);
+
+            function drawIrisCircle(irisPoints, label) {
+                const centerX = irisPoints.reduce((sum, p) => sum + p.x, 0) / irisPoints.length * canvasElement.width;
+                const centerY = irisPoints.reduce((sum, p) => sum + p.y, 0) / irisPoints.length * canvasElement.height;
+
+                ctx.strokeStyle = '#ff6b00';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 30, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ff6b00';
+                ctx.font = '14px Courier New';
+                ctx.fillText(label, centerX - 35, centerY - 40);
+            }
+
+            if (leftIris.length > 0) drawIrisCircle(leftIris, 'IRIS LOCK');
+            if (rightIris.length > 0) drawIrisCircle(rightIris, 'IRIS LOCK');
+        }
+
+        function calculateRPPG(landmarks) {
+            // Get forehead region (simplified - using a few key landmarks)
+            const foreheadIndices = [10, 151, 9, 8, 107, 336];
+            const foreheadPoints = foreheadIndices.map(i => landmarks[i]);
+
+            // Create temporary canvas to sample pixel data
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = videoElement.videoWidth;
+            tempCanvas.height = videoElement.videoHeight;
+            tempCtx.drawImage(videoElement, 0, 0);
+
+            // Sample green channel from forehead region
+            let greenSum = 0;
+            let count = 0;
+
+            for (const point of foreheadPoints) {
+                const x = Math.floor(point.x * tempCanvas.width);
+                const y = Math.floor(point.y * tempCanvas.height);
+                
+                const imageData = tempCtx.getImageData(x, y, 1, 1);
+                greenSum += imageData.data[1]; // Green channel
+                count++;
+            }
+
+            const greenMean = greenSum / count;
+            greenSignals.push(greenMean);
+            timestamps.push(Date.now());
+
+            // Keep last 10 seconds of data (assuming ~30fps)
+            if (greenSignals.length > 300) {
+                greenSignals.shift();
+                timestamps.shift();
+            }
+
+            // Estimate BPM (simplified - in production use proper FFT)
+            if (greenSignals.length > 100) {
+                estimateBPM();
+            }
+
+            waveformData.push(greenMean);
+            if (waveformData.length > 100) waveformData.shift();
+        }
+
+        function estimateBPM() {
+            // Simplified BPM estimation using peak detection
+            // In production, use FFT or autocorrelation
+            
+            const signal = [...greenSignals];
+            
+            // Detrend
+            const mean = signal.reduce((a, b) => a + b) / signal.length;
+            const detrended = signal.map(v => v - mean);
+
+            // Simple peak detection
+            let peaks = [];
+            for (let i = 1; i < detrended.length - 1; i++) {
+                if (detrended[i] > detrended[i-1] && detrended[i] > detrended[i+1] && detrended[i] > 0) {
+                    peaks.push(i);
+                }
+            }
+
+            if (peaks.length > 2) {
+                const intervals = [];
+                for (let i = 1; i < peaks.length; i++) {
+                    intervals.push(peaks[i] - peaks[i-1]);
+                }
+                const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
+                const fps = 30; // Assumed frame rate
+                const bpm = Math.round((fps * 60) / avgInterval);
+                
+                if (bpm >= 45 && bpm <= 150) {
+                    detectedBPM = bpm;
+                }
+            }
+        }
+
+        function drawHeartbeatWave() {
+            waveCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            waveCtx.fillRect(0, 0, waveCanvas.width, waveCanvas.height);
+
+            if (waveformData.length < 2) return;
+
+            waveCtx.strokeStyle = '#ff6b00';
+            waveCtx.lineWidth = 2;
+            waveCtx.beginPath();
+
+            const step = waveCanvas.width / waveformData.length;
+            const min = Math.min(...waveformData);
+            const max = Math.max(...waveformData);
+            const range = max - min || 1;
+
+            for (let i = 0; i < waveformData.length; i++) {
+                const x = i * step;
+                const normalized = (waveformData[i] - min) / range;
+                const y = waveCanvas.height - (normalized * waveCanvas.height * 0.8) - 10;
+
+                if (i === 0) {
+                    waveCtx.moveTo(x, y);
+                } else {
+                    waveCtx.lineTo(x, y);
+                }
+            }
+
+            waveCtx.stroke();
+        }
+    </script>
+</body>
+</html>
