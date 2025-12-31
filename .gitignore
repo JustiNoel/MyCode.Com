@@ -14,3 +14,21 @@ test_gen
 test_gen.caches
 TEST-*.xml
 junit*.properties
+
+# Node modules and env
+/backend/node_modules/
+/Family-Website/node_modules/
+node_modules/
+/.env
+/backend/.env
+/Family-Website/.env
+
+# Build/artifacts
+/backend/uploads/
+/Family-Website/dist/
+
+# VSCode
+.vscode/
+.idea/
+
+.DS_Store
